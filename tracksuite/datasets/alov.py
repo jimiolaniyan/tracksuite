@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import cv2 as cv
 from torch.utils.data import Dataset
 
 
@@ -28,6 +29,7 @@ class ALOVDataSet(Dataset):
                 frames = self._get_frames_with_anns(video_path, frame_idx)
                 # remove frame index
                 ann_list = np.delete(ann_list, 0, 1)
+                ann_list = self._convert_anns_to_bbox(ann_list)
 
                 self._pair_frames_and_anns(frames,ann_list)
 
@@ -53,6 +55,17 @@ class ALOVDataSet(Dataset):
     def _load_annotations(ann):
         return np.loadtxt(ann)
 
+    @staticmethod
+    def _convert_anns_to_bbox(ann):
+        idx_w = [0, 2, 4, 6]
+        idx_h = [1, 3, 5, 7]
+        left = np.min(ann[:, idx_w], axis=1)
+        top = np.min(ann[:, idx_h], axis=1)
+        right = np.max(ann[:, idx_w], axis=1)
+        bottom = np.max(ann[:, idx_h], axis=1)
+
+        return np.column_stack((left,top,right, bottom))
+
     def __len__(self):
         return len(self.frames)
 
@@ -68,4 +81,12 @@ class ALOVDataSet(Dataset):
 
         Index 1 - the bounding box of the first image at index 0
         """
+
+        prev_frame = cv.imread(self.frames[index][0])
+        curr_frame = cv.imread(self.frames[index][1])
+
+        prev_ann = self.annotations[0]
+        curr_ann = self.annotations[1]
+
+
         return [[], []]
