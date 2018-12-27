@@ -1,7 +1,7 @@
 import random
 import numpy as np
 import torch
-# from tqdm import tqdm
+from tqdm import tqdm
 from torch.utils.data import DataLoader, RandomSampler
 
 from tracksuite.datasets.alov import ALOVDataSet
@@ -25,7 +25,7 @@ def train_model():
     model = Goturn().to(device)
 
     for epoch in range(epochs):
-        for data in alov_loader:
+        for data in tqdm(alov_loader):
             prev_imgs, curr_imgs = data[0]
             labels = data[1]
             model.train()
@@ -34,8 +34,6 @@ def train_model():
             curr_imgs = curr_imgs.to(device, dtype=torch.float32)
 
             outputs = model(prev_imgs, curr_imgs)
-            break
-        break
 
 
 def get_device():
