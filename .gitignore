@@ -114,5 +114,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-tracksuite/models/pretrained/*
-tracksuite/sequences/*
+tracksuite/models/pretrained/
+tracksuite/sequences/

@@ -2,6 +2,7 @@ import os
 import numpy as np
 import cv2 as cv
 from torch.utils.data import Dataset
+from tracksuite.utils import crop_and_scale
 
 
 class ALOVDataSet(Dataset):
@@ -85,8 +86,9 @@ class ALOVDataSet(Dataset):
         prev_frame = cv.imread(self.frames[index][0])
         curr_frame = cv.imread(self.frames[index][1])
 
-        prev_ann = self.annotations[0]
-        curr_ann = self.annotations[1]
+        prev_bb = self.annotations[index][0]
+        curr_bb = self.annotations[index][1]
 
+        exemplar, search, new_bb = crop_and_scale(prev_frame, curr_frame, prev_bb, curr_bb, (227, 227))
 
-        return [[], []]
+        return (exemplar, search), new_bb
