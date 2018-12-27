@@ -5,7 +5,8 @@ import torch
 from torch.utils.data import DataLoader, RandomSampler
 
 from tracksuite.datasets.alov import ALOVDataSet
-import cv2
+from tracksuite.trackers.goturn import Goturn
+
 epochs = 1
 
 
@@ -19,28 +20,20 @@ def train_model():
     annotations = '~/Documents/Research/DataSets/ALOV/alov300++_rectangleAnnotation_full'
     alov_dataset = ALOVDataSet(videos_root=videos, annotations_root=annotations)
 
-    alov_loader = DataLoader(alov_dataset, batch_size=32, num_workers=4, sampler = RandomSampler(alov_dataset))
-    i = 19
-    j = i + 1
+    alov_loader = DataLoader(alov_dataset, batch_size=32, num_workers=6, sampler=RandomSampler(alov_dataset))
+
+    model = Goturn().to(device)
+
     for epoch in range(epochs):
         for data in alov_loader:
-            prev_img_batch, curr_img_batch = data[0]
+            prev_imgs, curr_imgs = data[0]
             labels = data[1]
-            img, img2 = prev_img_batch[i].numpy(), curr_img_batch[i].numpy()
-            img_, img2_ = prev_img_batch[j].numpy(), curr_img_batch[j].numpy()
+            model.train()
 
-            cv2.rectangle(img2, (int(labels[i][0]), int(labels[i][1])), (int(labels[i][2]), int(labels[i][3])), (89, 122, 41), 1)
-            cv2.rectangle(img2_, (int(labels[j][0]), int(labels[j][1])), (int(labels[j][2]), int(labels[j][3])), (89, 122, 41), 1)
-            cv2.imshow('im1', img)
-            cv2.imshow('im2', img2)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
+            prev_imgs = prev_imgs.to(device, dtype=torch.float32)
+            curr_imgs = curr_imgs.to(device, dtype=torch.float32)
 
-            cv2.imshow('im1', img_)
-            cv2.imshow('im2', img2_)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-
+            outputs = model(prev_imgs, curr_imgs)
             break
         break
 

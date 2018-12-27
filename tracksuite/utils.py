@@ -30,10 +30,10 @@ def crop_and_scale(prev_img, curr_img, prev_bbox, curr_bbox, size, dim_scale_fac
     w_scale = size[0] / int(new_right - new_left)
     h_scale = size[1] / int(new_bottom - new_top)
 
-    curr_left = (curr_bbox[0] - new_left) * w_scale
-    curr_top = (curr_bbox[1] - new_top) * h_scale
-    curr_right = (curr_bbox[2] - new_left) * w_scale
-    curr_bottom = (curr_bbox[3] - new_top) * h_scale
+    curr_left = np.maximum(0, curr_bbox[0] - new_left) * w_scale
+    curr_top = np.maximum(0, curr_bbox[1] - new_top) * h_scale
+    curr_right = np.maximum(0, curr_bbox[2] - new_left) * w_scale
+    curr_bottom = np.maximum(0, curr_bbox[3] - new_top) * h_scale
 
     bb = np.array([curr_left, curr_top, curr_right, curr_bottom])
     return prev, curr, bb
