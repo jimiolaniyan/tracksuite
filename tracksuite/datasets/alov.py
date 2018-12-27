@@ -17,7 +17,6 @@ class ALOVDataSet(Dataset):
     def _parse_dataset(self):
         annotations_folder_list = os.listdir(self.annotations_root)
         annotations_folder_list.sort()
-        i = 0
         for annonotations_folder in annotations_folder_list:
             videos_sub_folder = os.listdir(os.path.join(self.videos_root, annonotations_folder))
             videos_sub_folder.sort()

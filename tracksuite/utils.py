@@ -35,7 +35,8 @@ def crop_and_scale(prev_img, curr_img, prev_bbox, curr_bbox, size, dim_scale_fac
     curr_right = (curr_bbox[2] - new_left) * w_scale
     curr_bottom = (curr_bbox[3] - new_top) * h_scale
 
-    return prev, curr, (curr_left, curr_top, curr_right, curr_bottom)
+    bb = np.array([curr_left, curr_top, curr_right, curr_bottom])
+    return prev, curr, bb
 
 def crop_img(img, region):
     """
