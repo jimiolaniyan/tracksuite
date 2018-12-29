@@ -1,10 +1,12 @@
+import sys
+import time
 import random
+import logging
 import numpy as np
-import torch
 from tqdm import tqdm
+import torch
 import torch.optim as optim
 import torch.nn as nn
-import time
 from torch.utils.data import DataLoader, RandomSampler
 
 from tracksuite.datasets.alov import ALOVDataSet
@@ -33,20 +35,20 @@ def train_model():
 
     model = model.to(device)
 
-    criterion = nn.L1Loss(size_average=False)
+    criterion = nn.L1Loss()
     optimizer = optim.SGD(model.fc.parameters(), lr=1e-5, momentum=0.9, weight_decay=0.0005)
 
     since = time.time()
     for epoch in range(epochs):
         epoch_start = time.time()
-        print('Epoch {}/{}'.format(epoch, epochs - 1))
-        print('-' * 10)
+        logging.info('Epoch {}/{}'.format(epoch + 1, epochs))
+        logging.info('-' * 20)
 
         model.train()
 
         running_loss = 0.0
 
-        for data in alov_loader:
+        for data in tqdm(alov_loader):
             prev_imgs, curr_imgs = data[0]
             labels = data[1]
             optimizer.zero_grad()
@@ -63,16 +65,16 @@ def train_model():
             optimizer.step()
 
             running_loss += loss.item() * labels.size(0)
-            print(running_loss)
 
         epoch_time = time.time() - epoch_start
         epoch_loss = running_loss / len(alov_dataset)
-        print('Loss: {:.4f}'.format(epoch_loss))
-        print('Epoch Time: {:.0f}m {:.0f}s'.format(epoch_time // 60, epoch_time % 60))
+
+        logging.debug('Loss: {:.4f}'.format(epoch_loss))
+        logging.info('Epoch Time: {:.0f}m {:.0f}s'.format(epoch_time // 60, epoch_time % 60))
 
     time_taken = time.time() - since
 
-    print('Training complete in {:.0f}m {:.0f}s'.format(
+    logging.info('Training complete in {:.0f}m {:.0f}s'.format(
         time_taken // 60, time_taken % 60))
 
 
@@ -88,4 +90,9 @@ def setup_seeds(seed):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
+                    level=logging.INFO,
+                    stream=sys.stdout,
+                    datefmt='%Y-%m-%d %I:%M:%S %p')
+    logging.info('Training started')
     train_model()

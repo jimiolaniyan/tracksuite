@@ -4,6 +4,7 @@ from torchvision.models import alexnet
 
 
 class Goturn(nn.Module):
+    ouput_scale = 10
 
     def __init__(self):
         super(Goturn, self).__init__()
@@ -35,4 +36,7 @@ class Goturn(nn.Module):
 
         z = torch.cat((x_, y_), 1)
         z = self.fc(z)
+
+        # scale output by 10 as recommended in the paper
+        z = z * self.ouput_scale
         return z
