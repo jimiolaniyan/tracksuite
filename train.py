@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import datetime
@@ -11,12 +12,12 @@ import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import DataLoader, RandomSampler
 
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 
 from tracksuite.datasets.alov import ALOVDataSet
 from tracksuite.trackers.goturn import Goturn
 
-epochs = 10
+epochs = 50
 
 
 def train_model():
@@ -25,11 +26,14 @@ def train_model():
     device = get_device()
 
     # TODO: replace with either args or config file
+    # videos = '/content/drive/My Drive/Research/Datasets/ALOV/imagedata++'
+    # annotations = '/content/drive/My Drive/Research/Datasets/ALOV/alov300++_rectangleAnnotation_full'
     videos = '~/Documents/Research/DataSets/ALOV/imagedata++'
     annotations = '~/Documents/Research/DataSets/ALOV/alov300++_rectangleAnnotation_full'
+
     alov_dataset = ALOVDataSet(videos_root=videos, annotations_root=annotations)
 
-    alov_loader = DataLoader(alov_dataset, batch_size=32, num_workers=6, sampler=RandomSampler(alov_dataset),
+    alov_loader = DataLoader(alov_dataset, batch_size=64, num_workers=8, sampler=RandomSampler(alov_dataset),
                              drop_last=False)
 
     model = Goturn()
@@ -40,7 +44,14 @@ def train_model():
     model = model.to(device)
 
     criterion = nn.L1Loss()
-    optimizer = optim.SGD(model.fc.parameters(), lr=1e-5, momentum=0.9, weight_decay=0.0005)
+    optimizer = optim.SGD(model.fc.parameters(), lr=5e-4, momentum=0.9, weight_decay=0.0005)
+    saved_model = '/content/drive/My Drive/colab/goturn_2018_12_29_14_36_epoch_10.pth'
+    if os.path.isfile(saved_model):
+        logging.info('Loading checkpoint {}'.format(saved_model))
+        checkpoint = torch.load(saved_model)
+        model.load_state_dict(checkpoint['model_state'])
+        # optimizer.load_state_dict(checkpoint['optimizer_state'])
+        logging.info('Loaded model from {}'.format(saved_model))
 
     since = time.time()
     for epoch in range(epochs):
@@ -71,25 +82,25 @@ def train_model():
             running_loss += loss.item() * labels.size(0)
             
             # if (i + 1) % 5 == 0:
-            writer.add_scalar('loss/running_loss', loss.item() * labels.size(0), i + 1)
-        
+            # writer.add_scalar('loss/running_loss', loss.item() * labels.size(0), i + 1)
+
         epoch_time = time.time() - epoch_start
         logging.info('Epoch Time: {:.0f}m {:.0f}s'.format(epoch_time // 60, epoch_time % 60))
-        
+
         epoch_loss = running_loss / len(alov_dataset)
-        writer.add_scalar('loss/epoch_loss', epoch_loss, epoch + 1)
+        # writer.add_scalar('loss/epoch_loss', epoch_loss, epoch + 1)
         logging.debug('Loss: {:.4f}'.format(epoch_loss))
-        
+
         if (epoch + 1) % 5 == 0:
             model_wts = copy.deepcopy(model.state_dict())
             now = datetime.datetime.today().strftime('%Y_%m_%d_%H_%M')
             state = {
-                        "epoch": epoch + 1,
-                        "model_state": model_wts,
-                        "optimizer_state": optimizer.state_dict(),
-                        "loss": epoch_loss
-                    }
-            torch.save(state, '/content/drive/My Drive/colab/goturn_{}_epoch_{}.pth'.format(now, epoch +1))
+                "epoch": epoch + 1,
+                "model_state": model_wts,
+                "optimizer_state": optimizer.state_dict(),
+                "loss": epoch_loss
+            }
+            torch.save(state, '/content/drive/My Drive/colab/goturn_{}_epoch_{}.pth'.format(now, epoch + 1))
 
     time_taken = time.time() - since
 
@@ -109,11 +120,11 @@ def setup_seeds(seed):
 
 
 if __name__ == "__main__":
-    LOG_DIR = '/tmp/log'
-    writer = SummaryWriter(log_dir=LOG_DIR)
+    LOG_DIR = '/content/drive/My Drive/colab/log'
+    # writer = SummaryWriter(log_dir=LOG_DIR)
     logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
-                    level=logging.DEBUG,
-                    stream=sys.stdout,
-                    datefmt='%Y-%m-%d %I:%M:%S %p')
+                        level=logging.DEBUG,
+                        stream=sys.stdout,
+                        datefmt='%Y-%m-%d %I:%M:%S %p')
     logging.info('Training started')
     train_model()
