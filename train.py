@@ -1,5 +1,7 @@
 import sys
 import time
+import datetime
+import copy
 import random
 import logging
 import numpy as np
@@ -9,10 +11,12 @@ import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import DataLoader, RandomSampler
 
+from tensorboardX import SummaryWriter
+
 from tracksuite.datasets.alov import ALOVDataSet
 from tracksuite.trackers.goturn import Goturn
 
-epochs = 3
+epochs = 10
 
 
 def train_model():
@@ -48,7 +52,7 @@ def train_model():
 
         running_loss = 0.0
 
-        for data in tqdm(alov_loader):
+        for i, data in tqdm(enumerate(alov_loader)):
             prev_imgs, curr_imgs = data[0]
             labels = data[1]
             optimizer.zero_grad()
@@ -65,12 +69,27 @@ def train_model():
             optimizer.step()
 
             running_loss += loss.item() * labels.size(0)
-
+            
+            # if (i + 1) % 5 == 0:
+            writer.add_scalar('loss/running_loss', loss.item() * labels.size(0), i + 1)
+        
         epoch_time = time.time() - epoch_start
-        epoch_loss = running_loss / len(alov_dataset)
-
-        logging.debug('Loss: {:.4f}'.format(epoch_loss))
         logging.info('Epoch Time: {:.0f}m {:.0f}s'.format(epoch_time // 60, epoch_time % 60))
+        
+        epoch_loss = running_loss / len(alov_dataset)
+        writer.add_scalar('loss/epoch_loss', epoch_loss, epoch + 1)
+        logging.debug('Loss: {:.4f}'.format(epoch_loss))
+        
+        if (epoch + 1) % 5 == 0:
+            model_wts = copy.deepcopy(model.state_dict())
+            now = datetime.datetime.today().strftime('%Y_%m_%d_%H_%M')
+            state = {
+                        "epoch": epoch + 1,
+                        "model_state": model_wts,
+                        "optimizer_state": optimizer.state_dict(),
+                        "loss": epoch_loss
+                    }
+            torch.save(state, '/content/drive/My Drive/colab/goturn_{}_epoch_{}.pth'.format(now, epoch +1))
 
     time_taken = time.time() - since
 
@@ -90,8 +109,10 @@ def setup_seeds(seed):
 
 
 if __name__ == "__main__":
+    LOG_DIR = '/tmp/log'
+    writer = SummaryWriter(log_dir=LOG_DIR)
     logging.basicConfig(format='%(asctime)s %(levelname)s %(message)s',
-                    level=logging.INFO,
+                    level=logging.DEBUG,
                     stream=sys.stdout,
                     datefmt='%Y-%m-%d %I:%M:%S %p')
     logging.info('Training started')
