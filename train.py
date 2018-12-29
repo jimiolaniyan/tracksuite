@@ -44,7 +44,9 @@ def train_model():
     model = model.to(device)
 
     criterion = nn.L1Loss()
-    optimizer = optim.SGD(model.fc.parameters(), lr=5e-4, momentum=0.9, weight_decay=0.0005)
+    optimizer = optim.SGD(model.fc.parameters(), lr=1e-3, momentum=0.9, weight_decay=0.0005)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+
     saved_model = '/content/drive/My Drive/colab/goturn_2018_12_29_14_36_epoch_10.pth'
     if os.path.isfile(saved_model):
         logging.info('Loading checkpoint {}'.format(saved_model))
@@ -59,6 +61,7 @@ def train_model():
         logging.info('Epoch {}/{}'.format(epoch + 1, epochs))
         logging.info('-' * 20)
 
+        scheduler.step()
         model.train()
 
         running_loss = 0.0
