@@ -11,6 +11,15 @@ def calculate_iou(bboxes1, bboxes2):
     :return: iou: ratio between 0 and 1
     """
 
+    if len(bboxes1.shape) == 1:
+        bboxes1 = bboxes1.reshape(1, bboxes1.shape[0])
+
+    if len(bboxes2.shape) == 1:
+        bboxes2 = bboxes2.reshape(1, bboxes2.shape[0])
+
+    if bboxes1.shape[0] != bboxes2.shape[0] or bboxes1.shape[1] != bboxes2.shape[1]:
+        raise ValueError('Bounding boxes must be of equal dimension')
+
     left_intersection = np.maximum(bboxes1[:, 0], bboxes2[:, 0])
     top_intersection = np.maximum(bboxes1[:, 1], bboxes2[:, 1])
     right_intersection = np.minimum(bboxes1[:, 2], bboxes2[:, 2])
@@ -19,8 +28,12 @@ def calculate_iou(bboxes1, bboxes2):
     w_intersection = right_intersection - left_intersection
     h_intersection = bottom_intersection - top_intersection
 
-    # if w_intersection < 0 or h_intersection < 0:
-    #     return 0.0
+    intersection_area = w_intersection * h_intersection
 
-    # intersection_area = w_intersection * h_intersection
-    # union_
+    bboxes1_area = (bboxes1[:, 2] - bboxes1[:, 0]) * (bboxes1[:, 3] - bboxes1[:, 1])
+    bboxes2_area = (bboxes2[:, 2] - bboxes2[:, 0]) * (bboxes2[:, 3] - bboxes2[:, 1])
+
+    union_area = bboxes1_area + bboxes2_area - intersection_area
+
+    iou = np.clip(intersection_area/union_area, 0, 1)
+    return iou
