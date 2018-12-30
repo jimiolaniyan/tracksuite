@@ -10,7 +10,7 @@ from tqdm import tqdm
 import torch
 import torch.optim as optim
 import torch.nn as nn
-from torch.utils.data import DataLoader, RandomSampler
+from torch.utils.data import DataLoader, RandomSampler, random_split
 
 # from tensorboardX import SummaryWriter
 
@@ -32,9 +32,15 @@ def train_model():
     annotations = '~/Documents/Research/DataSets/ALOV/alov300++_rectangleAnnotation_full'
 
     alov_dataset = ALOVDataSet(videos_root=videos, annotations_root=annotations)
+    train_size = int(0.8 * len(alov_dataset))
+    val_size = len(alov_dataset) - train_size
+    train_dataset, val_dataset = random_split(alov_dataset, [train_size, val_size])
 
-    alov_loader = DataLoader(alov_dataset, batch_size=64, num_workers=8, sampler=RandomSampler(alov_dataset),
-                             drop_last=False)
+    train_loader = DataLoader(train_dataset, batch_size=50, num_workers=8, sampler=RandomSampler(train_dataset),
+                              drop_last=False)
+
+    val_loader = DataLoader(val_dataset, batch_size=50, num_workers=8, sampler=RandomSampler(val_dataset),
+                            drop_last=False)
 
     model = Goturn()
 
@@ -66,7 +72,7 @@ def train_model():
 
         running_loss = 0.0
 
-        for i, data in tqdm(enumerate(alov_loader)):
+        for i, data in tqdm(enumerate(train_loader)):
             prev_imgs, curr_imgs = data[0]
             labels = data[1]
             optimizer.zero_grad()
@@ -83,14 +89,14 @@ def train_model():
             optimizer.step()
 
             running_loss += loss.item() * labels.size(0)
-            
+
             # if (i + 1) % 5 == 0:
             # writer.add_scalar('loss/running_loss', loss.item() * labels.size(0), i + 1)
 
         epoch_time = time.time() - epoch_start
         logging.info('Epoch Time: {:.0f}m {:.0f}s'.format(epoch_time // 60, epoch_time % 60))
 
-        epoch_loss = running_loss / len(alov_dataset)
+        epoch_loss = running_loss / len(train_dataset)
         # writer.add_scalar('loss/epoch_loss', epoch_loss, epoch + 1)
         logging.debug('Loss: {:.4f}'.format(epoch_loss))
 
@@ -129,5 +135,5 @@ if __name__ == "__main__":
                         level=logging.DEBUG,
                         stream=sys.stdout,
                         datefmt='%Y-%m-%d %I:%M:%S %p')
-    logging.info('Training started')
+    logging.info('Call main loop')
     train_model()

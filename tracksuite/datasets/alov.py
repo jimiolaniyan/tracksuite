@@ -2,7 +2,7 @@ import os
 import numpy as np
 import cv2 as cv
 from torch.utils.data import Dataset
-from tracksuite.utils import crop_and_scale
+from tracksuite.utils.image import crop_and_scale
 
 
 class ALOVDataSet(Dataset):
