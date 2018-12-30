@@ -2,17 +2,28 @@ import os
 import numpy as np
 import cv2 as cv
 from torch.utils.data import Dataset
+from torchvision import transforms
 from tracksuite.utils.image import crop_and_scale
 
 
 class ALOVDataSet(Dataset):
 
-    def __init__(self, videos_root, annotations_root):
+    def __init__(self, videos_root, annotations_root, transform=None, output_scale=10):
         self.videos_root = os.path.expanduser(videos_root)
         self.annotations_root = os.path.expanduser(annotations_root)
         self.frames = []
         self.annotations = []
         self._parse_dataset()
+
+        self.transform = transform
+        self.output_scale = output_scale
+
+        if self.transform is None:
+            self.transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.39073333, 0.40982353, 0.43166235],
+                                     std=[0.20822039, 0.21170275, 0.21818118])
+            ])
 
     def _parse_dataset(self):
         annotations_folder_list = os.listdir(self.annotations_root)
@@ -89,5 +100,11 @@ class ALOVDataSet(Dataset):
         curr_bb = self.annotations[index][1]
 
         exemplar, search, new_bb = crop_and_scale(prev_frame, curr_frame, prev_bb, curr_bb, (227, 227))
+
+        exemplar = self.transform(exemplar)
+        search = self.transform(search)
+
+        # scale bbox to be between 0 and output_scale
+        new_bb = new_bb * (self.output_scale/227)
 
         return (exemplar, search), new_bb

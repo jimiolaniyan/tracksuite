@@ -28,15 +28,10 @@ class Goturn(nn.Module):
         )
 
     def forward(self, x, y):
-        x = x.permute(0, 3, 2, 1)
-        y = y.permute(0, 3, 2, 1)
-
         x_ = self.conv(x).view(-1, 256*6*6)
         y_ = self.conv(y).view(-1, 256*6*6)
 
         z = torch.cat((x_, y_), 1)
         z = self.fc(z)
 
-        # scale output by 10 as recommended in the paper
-        # z = z * self.output_scale
         return z
