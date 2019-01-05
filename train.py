@@ -18,7 +18,7 @@ from tracksuite.datasets.alov import ALOVDataSet
 from tracksuite.trackers.goturn import Goturn
 from tracksuite.utils.metrics import calculate_iou
 
-epochs = 50
+epochs = 20
 
 
 def train_model():
@@ -27,20 +27,20 @@ def train_model():
     device = get_device()
 
     # TODO: replace with either args or config file
-    # videos = '/content/drive/My Drive/Research/Datasets/ALOV/imagedata++'
-    # annotations = '/content/drive/My Drive/Research/Datasets/ALOV/alov300++_rectangleAnnotation_full'
-    videos = '~/Documents/Research/DataSets/ALOV/imagedata++'
-    annotations = '~/Documents/Research/DataSets/ALOV/alov300++_rectangleAnnotation_full'
+    videos = '/content/drive/My Drive/Research/Datasets/ALOV/imagedata++'
+    annotations = '/content/drive/My Drive/Research/Datasets/ALOV/alov300++_rectangleAnnotation_full'
+    # videos = '~/Documents/Research/DataSets/ALOV/imagedata++'
+    # annotations = '~/Documents/Research/DataSets/ALOV/alov300++_rectangleAnnotation_full'
 
     alov_dataset = ALOVDataSet(videos_root=videos, annotations_root=annotations)
     train_size = int(0.8 * len(alov_dataset))
     val_size = len(alov_dataset) - train_size
     train_dataset, val_dataset = random_split(alov_dataset, [train_size, val_size])
 
-    train_loader = DataLoader(train_dataset, batch_size=50, num_workers=6, sampler=RandomSampler(train_dataset),
+    train_loader = DataLoader(train_dataset, batch_size=64, num_workers=8, sampler=RandomSampler(train_dataset),
                               drop_last=False)
 
-    val_loader = DataLoader(val_dataset, batch_size=50, num_workers=6, sampler=RandomSampler(val_dataset),
+    val_loader = DataLoader(val_dataset, batch_size=64, num_workers=8, sampler=RandomSampler(val_dataset),
                             drop_last=False)
 
     model = Goturn()
@@ -51,29 +51,36 @@ def train_model():
     model = model.to(device)
 
     criterion = nn.L1Loss()
-    optimizer = optim.SGD(model.fc.parameters(), lr=1e-4, momentum=0.9, weight_decay=0.0005)
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
-
-    saved_model = '/content/drive/My Drive/colab/goturn_2018_12_29_14_36_epoch_1.pth'
-    if os.path.isfile(saved_model):
-        logging.info('Loading checkpoint {}'.format(saved_model))
-        checkpoint = torch.load(saved_model)
-        model.load_state_dict(checkpoint['model_state'])
-        # optimizer.load_state_dict(checkpoint['optimizer_state'])
-        logging.info('Loaded model from {}'.format(saved_model))
+    optimizer = optim.Adam(model.fc.parameters(), lr=1e-6, weight_decay=0.0005)
+    # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=8, gamma=0.333)
 
     best_acc = -100.0
+    epoch = 0
+    
+    model_path = '/content/drive/My Drive/goturn_best_model_2.pth'
+    if os.path.isfile(model_path):
+        logging.info('Loading checkpoint {}'.format(model_path))
+        checkpoint = torch.load(model_path)
+        model.load_state_dict(checkpoint['model_state'])
+        optimizer.load_state_dict(checkpoint['optimizer_state'])
+        best_acc = checkpoint['best_acc']
+        epoch = checkpoint['epoch']
+        logging.info('Loaded model from {}'.format(model_path))
+        logging.info('Resuming training......')
+        logging.info('Best Accuracy is: {}'.format(best_acc))
+        logging.info('Starting at epoch: {}'.format(epoch))
+
     since = time.time()
-    for epoch in range(epochs):
+    for epoch in range(epoch, epochs):
         epoch_start = time.time()
         logging.info('Epoch {}/{}'.format(epoch + 1, epochs))
-        logging.info('-' * 20)
+        logging.info('-' * 30)
 
         for phase in ['train', 'val']:
             if phase == 'train':
                 dataset = train_dataset
                 data_loader = train_loader
-                scheduler.step()
+                # scheduler.step()
                 model.train()
             else:
                 dataset = val_dataset
@@ -104,33 +111,36 @@ def train_model():
 
                 running_loss += loss.item() * labels.size(0)
 
-                iou = calculate_iou(outputs.detach().numpy(), labels)
+                iou = calculate_iou(outputs.detach().cpu().numpy(), labels)
                 acc = torch.mean(iou)
 
                 running_acc += acc.item() * labels.size(0)
 
-                writer.add_scalar('acc/running_acc', acc.item() * labels.size(0), i + 1)
-                writer.add_scalar('loss/running_loss', loss.item() * labels.size(0), i + 1)
-
+                writer.add_scalar('acc/{}_running_acc'.format(phase), acc.item(), i + 1)
+                writer.add_scalar('loss/{}_running_loss'.format(phase), loss.item(), i + 1)
+            
             epoch_time = time.time() - epoch_start
             logging.info('Epoch Time: {:.0f}m {:.0f}s'.format(epoch_time // 60, epoch_time % 60))
 
             epoch_loss = running_loss / len(dataset)
             epoch_acc = running_acc / len(dataset)
             logging.debug('{} loss: {:.4f} acc: {:.4f}'.format(phase, epoch_loss, epoch_acc))
-            # writer.add_scalar('loss/epoch_loss', epoch_loss, epoch + 1)
-            # writer.add_scalar('acc/epoch_acc', epoch_acc, epoch + 1)
+            writer.add_scalar('loss/{}_epoch_loss'.format(phase), epoch_loss, epoch + 1)
+            writer.add_scalar('acc/{}_epoch_acc'.format(phase), epoch_acc, epoch + 1)
 
-        if phase == 'val' and epoch_acc > best_acc:
+        if phase == 'val' and epoch_acc > best_acc and epoch_acc > 0.4:
+            logging.info('Saving model with accuracy... {}'.format(epoch_acc))
+            best_acc = epoch_acc
             model_wts = copy.deepcopy(model.state_dict())
             now = datetime.datetime.today().strftime('%Y_%m_%d_%H_%M')
+            # "scheduler_state": scheduler.state_dict(),
             state = {
                 "epoch": epoch + 1,
                 "model_state": model_wts,
                 "optimizer_state": optimizer.state_dict(),
-                "loss": epoch_loss
+                "best_acc": best_acc
             }
-            torch.save(state, '/content/drive/My Drive/colab/goturn_{}_epoch_{}.pth'.format(now, epoch + 1))
+            torch.save(state, model_path)
 
     time_taken = time.time() - since
 
