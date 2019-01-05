@@ -3,6 +3,51 @@ import cv2
 
 
 def crop_and_scale(prev_img, curr_img, prev_bbox, curr_bbox, size, dim_scale_factor=2):
+    region = get_region_to_crop(prev_bbox,dim_scale_factor)
+
+    new_left, new_top, new_right, new_bottom = region
+
+    prev = crop_img(prev_img, region=region)
+    curr = crop_img(curr_img, region=region)
+
+    prev = scale_img(prev, size)
+    curr = scale_img(curr, size)
+
+    if curr_bbox is None:
+        return prev, curr
+
+    w_scale = size[0] / int(new_right - new_left)
+    h_scale = size[1] / int(new_bottom - new_top)
+
+    curr_left = np.maximum(0, curr_bbox[0] - new_left) * w_scale
+    curr_top = np.maximum(0, curr_bbox[1] - new_top) * h_scale
+    curr_right = np.maximum(0, curr_bbox[2] - new_left) * w_scale
+    curr_bottom = np.maximum(0, curr_bbox[3] - new_top) * h_scale
+
+    bb = np.array([curr_left, curr_top, curr_right, curr_bottom])
+    return prev, curr, bb
+
+
+def net_bb_to_orig_bb(net_bbox, prev_bbox, size=(227, 227), dim_scale_factor=2):
+    region = get_region_to_crop(prev_bbox, dim_scale_factor)
+
+    new_left, new_top, new_right, new_bottom = region
+
+    w_scale = size[0] / int(new_right - new_left)
+    h_scale = size[1] / int(new_bottom - new_top)
+
+    curr_left, curr_top, curr_right, curr_bottom = net_bbox
+    curr_bbox = np.zeros(4)
+
+    curr_bbox[0] = (curr_left / w_scale) + new_left
+    curr_bbox[1] = (curr_top / h_scale) + new_top
+    curr_bbox[2] = (curr_right / w_scale) + new_left
+    curr_bbox[3] = (curr_bottom / h_scale) + new_top
+
+    return curr_bbox
+
+
+def get_region_to_crop(prev_bbox, dim_scale_factor):
     left, top, right, bottom = prev_bbox
 
     width = right - left
@@ -21,22 +66,7 @@ def crop_and_scale(prev_img, curr_img, prev_bbox, curr_bbox, size, dim_scale_fac
 
     region = (new_left, new_top, new_right, new_bottom)
 
-    prev = crop_img(prev_img, region=region)
-    curr = crop_img(curr_img, region=region)
-
-    prev = scale_img(prev, size)
-    curr = scale_img(curr, size)
-
-    w_scale = size[0] / int(new_right - new_left)
-    h_scale = size[1] / int(new_bottom - new_top)
-
-    curr_left = np.maximum(0, curr_bbox[0] - new_left) * w_scale
-    curr_top = np.maximum(0, curr_bbox[1] - new_top) * h_scale
-    curr_right = np.maximum(0, curr_bbox[2] - new_left) * w_scale
-    curr_bottom = np.maximum(0, curr_bbox[3] - new_top) * h_scale
-
-    bb = np.array([curr_left, curr_top, curr_right, curr_bottom])
-    return prev, curr, bb
+    return region
 
 
 def crop_img(img, region):
